@@ -8,15 +8,15 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 #include <sys/wait.h> //wait for children
 #include <unistd.h> //fork
 #include <string.h> //strcmp
+#include <sys/types.h>
 
 void ParseArguments(int argc, char *argv[]);
 
 int main(int argc, char *argv[]) {
-    printf("Master process started.\n");
+    printf("Master process pid %d started.\n", getpid());
     ParseArguments(argc, argv);
     printf("NUM+P:%d\nNUM_ITERATIONS:%d\n", NUM_P, NUM_ITERATIONS);
     //create 2 shared_mem segments, one for in one for out
@@ -27,7 +27,9 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < NUM_P; i++) {
         processPArray[i] = fork();
         if (processPArray[i] == 0) { //if child
-            return ProcessP("./rand.txt", in_queue_id, out_queue_id);
+            int ret = ProcessP("./rand.txt", in_queue_id, out_queue_id);
+            free(processPArray);
+            return ret;
         }
     }
     //create C process
@@ -42,19 +44,21 @@ int main(int argc, char *argv[]) {
     waitpid(pid_C, &status, 0);
     printf("C done with status: %d\n", status);
 
+
     for(int i=0; i<NUM_P; i++) {
         printf("Master waiting for P %d to terminate\n", processPArray[i]);
         waitpid(processPArray[i], &status, 0);
-        printf("%d P finished with status:%d\n", processPArray[i], status);
+        printf("%d P finished with status:%d\n", processPArray[i], WEXITSTATUS(status));
     }
 
     //cleanup
     QueueDelete(in_queue_id);
     QueueDelete(out_queue_id);
+    free(processPArray);
 
-    printf("----------------------------------------------------------------\n")
+    printf("----------------------------------------------------------------\n");
     printf("Sucessfull termination with:\n");
-    printf("%d P processes", NUM_P);
+    printf("%d P processes\n", NUM_P);
     printf("%d C process steps/iterations\n", NUM_ITERATIONS);
     return 0;
 }

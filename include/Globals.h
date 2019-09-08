@@ -4,7 +4,7 @@
 #define IN_QUEUE_SIZE 4096 //in bytes
 #define MAX_NUM_OUT_MSG 8
 
-#define MD5_HASH_SIZE 16   //hash size in bytes
+#define MD5_HASH_SIZE 32   //hash size is 32 hex characters
 
 int NUM_P , NUM_ITERATIONS;
 

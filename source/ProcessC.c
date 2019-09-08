@@ -7,22 +7,26 @@
 #include <stdlib.h>
 #include <string.h>
 #include <openssl/md5.h>
+#include <sys/wait.h>
 
-int ProcessC(int num_iterations, int *processP_array, int num_processP, int in_queue_id, int out_queue_id) {
+int ProcessC(int num_iterations, pid_t *processP_array, int num_processP, int in_queue_id, int out_queue_id) {
     printf("C running with pid %d\n", getpid());
     //attach shared mem segments
-    InQueueHeader* in_queue = (InQueueHeader*)QueueAttach(in_queue_id);
-    OutQueueHeader* out_queue = (OutQueueHeader*)QueueAttach(out_queue_id);
+    InQueueHeader *in_queue = (InQueueHeader *) QueueAttach(in_queue_id);
+    OutQueueHeader *out_queue = (OutQueueHeader *) QueueAttach(out_queue_id);
     for (int i = 0; i < num_iterations; i++) {
         //get a message from in_queue
         pid_t writer_pid;
+        printf("C reading from InQueue\n");
         char *message = InQueue_Read(in_queue, &writer_pid);
+        printf("C read: \"%s\"\n", message);
         //calculate MD5 hash
         char *hash = str2md5(message, strlen(message));
         //write hash to out_queue
         OutMessage response;
         response.pid = writer_pid;
-        memcpy(&(response.message), hash, MD5_HASH_SIZE);
+        strcpy(response.message, hash);
+        printf("C writing to OutQueue: {%d, %s}\n", writer_pid, response.message);
         OutQueue_Write(out_queue, response);
         //clean up
         free(message);
@@ -31,15 +35,17 @@ int ProcessC(int num_iterations, int *processP_array, int num_processP, int in_q
     //send message to all p processes to stop
     StopAll(processP_array, num_processP, out_queue);
     //cleanup
-    InQueue_DelSemaphores(in_queue);
-    OutQueue_DelSemaphores(out_queue);
-    QueueDetach((char*)in_queue);
-    QueueDetach((char*)out_queue);
+    //InQueue_DelSemaphores(in_queue);
+    //OutQueue_DelSemaphores(out_queue);
+    QueueDetach((char *) in_queue);
+    QueueDetach((char *) out_queue);
+    free(processP_array);
     return 0;
 }
 
-void StopAll(int *processP_array, int num_processP, OutQueueHeader *out_queue) {
+void StopAll(pid_t *processP_array, int num_processP, OutQueueHeader *out_queue) {
     for (int i = 0; i < num_processP; i++) {
+        printf("C telling %d to terminate.\n", processP_array[i]);
         OutMessage message = {processP_array[i], "TERMINATE"};
         OutQueue_Write(out_queue, message);
     }
@@ -71,6 +77,5 @@ char *str2md5(const char *str, int length) {
     for (n = 0; n < 16; ++n) {
         snprintf(&(out[n * 2]), 16 * 2, "%02x", (unsigned int) digest[n]);
     }
-
     return out;
 }

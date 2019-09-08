@@ -8,7 +8,7 @@
 
 int ProcessP(char *input_filepath, int in_queue_id, int out_queue_id) ;
 
-void ReadRandomLine(char **message_ptr, size_t *message_size);
+char *ReadRandomLine(size_t *message_size);
 
 char *ConstructPayload(InMessageHeader msg_header, char *message);
 

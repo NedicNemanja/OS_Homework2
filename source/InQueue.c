@@ -7,17 +7,24 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <string.h> //memcpy
+#include <sys/sem.h>
 
 /*Get shared memory segment*/
 int InQueue_Init(key_t shkey, size_t memSize) {
-    printf("Initialize InQueue\n");
-    //get semaphore keys
+    printf("Initialize InQueue to %d bytes\n", (int)memSize);
+    //set up semaphores
     key_t semkey_writeSem = SemCreate((int) shkey);
     SemUp(SemGet(semkey_writeSem));
+    printf("InQueue->semkey_writeSem set to %d\n", semctl(SemGet(semkey_writeSem),0,GETVAL));
+
     key_t semkey_msgNum = SemCreate((int) shkey+1);
+    printf("InQueue->semkey_msgNum set to %d\n", semctl(SemGet(semkey_msgNum),0,GETVAL));
+
     key_t semkey_freeSpace = SemCreate((int) shkey + 2);
     SemOp(SemGet(semkey_freeSpace), memSize);
-    //get memory segment
+    printf("InQueue->semkey_freeSpace %d set to %d\n", (int)semkey_freeSpace, semctl(SemGet(semkey_freeSpace),0,GETVAL));
+
+    //set up shared memory segment
     int shmid;
     if ((shmid = shmget(shkey, sizeof(InQueueHeader) + memSize, IPC_CREAT | 0600)) < 0) {
         perror("shmget: ");
@@ -25,7 +32,7 @@ int InQueue_Init(key_t shkey, size_t memSize) {
     }
     //initialize shared memory segment
     char *mem = QueueAttach(shmid);
-    InQueueHeader in_queue = {0, 0, semkey_writeSem, semkey_msgNum, semkey_writeSem};
+    InQueueHeader in_queue = {0, 0, semkey_writeSem, semkey_msgNum, semkey_freeSpace};
     //write queue data to shared memory
     memcpy(mem, &in_queue, sizeof(InQueueHeader));
     QueueDetach(mem);
@@ -34,7 +41,9 @@ int InQueue_Init(key_t shkey, size_t memSize) {
 
 void InQueue_Write(InQueueHeader *queue, char *payload, size_t payload_size) {
     //try to down writeSem, if fail wait for your turn to write
+    printf("%d here0\n", getpid());
     SemDown(SemGet(queue->semkey_writeSem));
+    printf("%d here\n", getpid());
     //check if there is enough freeSpace for the size of payload, if not wait for space to be freed by C
     SemOp(SemGet(queue->semkey_freeSpace), -payload_size);
     //write payload data into shared memory
@@ -52,6 +61,7 @@ char *InQueue_Read(InQueueHeader *queue, pid_t *writer_pid) {
     SemDown(SemGet(queue->semkey_msgNum));
     //get message header from read_ptr (to find out the message size)
     InMessageHeader msg_header = InMessage_GetHeader(queue);
+    *writer_pid = msg_header.pid;
     //now that we know the message size, get message from queue
     char *message_start_ptr = InQueue_GetPtr(queue, queue->read_ptr) + sizeof(InMessageHeader);
     char *message = malloc(msg_header.message_size);

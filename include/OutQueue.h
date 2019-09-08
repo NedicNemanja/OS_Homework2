@@ -10,7 +10,7 @@
 
 typedef struct OutMessage {
     pid_t pid;
-    char message[MD5_HASH_SIZE];
+    char message[MD5_HASH_SIZE+1];
 } OutMessage;
 
 
