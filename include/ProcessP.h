@@ -8,8 +8,12 @@
 
 int ProcessP(char *input_filepath, int in_queue_id, int out_queue_id) ;
 
-char *ReadRandomLine(size_t *message_size);
-
 char *ConstructPayload(InMessageHeader msg_header, char *message);
+
+char **LoadFileToMemory(char* filepath, int* array_size_ptr);
+
+void FreeFile(char** line_array, int line_array_size);
+
+void PrintFile(char** line_array, int line_array_size);
 
 #endif //OS_PROCESSP_H

@@ -3,6 +3,8 @@
 
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 
 int ProcessP(char *input_filepath, int in_queue_id, int out_queue_id) {
     int pid_match = 0;
@@ -12,12 +14,14 @@ int ProcessP(char *input_filepath, int in_queue_id, int out_queue_id) {
     InQueueHeader *in_queue = (InQueueHeader *) QueueAttach(in_queue_id);
     OutQueueHeader *out_queue = (OutQueueHeader *) QueueAttach(out_queue_id);
     //open input file
-    FILE *f = fopen(input_filepath, "r");
+    int line_array_size;
+    char** line_array = LoadFileToMemory(input_filepath, &line_array_size);
+    srand(time(NULL));
     while (1) {
         /*************write*************************/
         //get random line from txt file
-        size_t message_size;
-        char *message = ReadRandomLine(&message_size); //TODO make sure message_size is strlen()+1
+        char *message = line_array[rand()%line_array_size];
+        size_t message_size = strlen(message)+1;
         //construct and write InMessageHeader
         InMessageHeader msg_header = {message_size, my_pid};
         char *payload = ConstructPayload(msg_header, message);
@@ -36,9 +40,9 @@ int ProcessP(char *input_filepath, int in_queue_id, int out_queue_id) {
                 printf("P %d terminating with %d.\n", my_pid, pid_match);
                 //cleanup
                 free(response);
-                fclose(f);
                 QueueDetach((char *) in_queue);
                 QueueDetach((char *) out_queue);
+                FreeFile(line_array, line_array_size);
                 return pid_match;
             }
         } while (response == NULL);
@@ -48,9 +52,52 @@ int ProcessP(char *input_filepath, int in_queue_id, int out_queue_id) {
     }
 }
 
-char *ReadRandomLine(size_t *message_size) {
-    *message_size = 4;//TODO rewrite this funciton
-    return "asd";
+char **LoadFileToMemory(char* filepath, int* array_size_ptr) {
+    char** line_array = NULL;
+    int line_array_size=0;
+
+    FILE *fp = fopen(filepath, "r");
+    if (fp == NULL)
+        exit(FOPEN_FAIL);
+
+    char * line = NULL;
+    size_t len = 0;
+    ssize_t read;
+
+    while ((read = getline(&line, &len, fp)) != -1) {
+        if(read <= 1) {
+            free(line);
+            line = NULL;
+            len = 0;
+            continue;
+        }
+        line[read-1] = '\0';
+        line_array_size++;
+        line_array = realloc(line_array, line_array_size*sizeof(char*));
+        line_array[line_array_size-1] = malloc(strlen(line)+1);
+        strcpy(line_array[line_array_size-1], line);
+        free(line);
+        line = NULL;
+        len = 0;
+    }
+    if(line != NULL)
+        free(line);
+    fclose(fp);
+    *array_size_ptr = line_array_size;
+    return line_array;
+}
+
+void PrintFile(char** line_array, int line_array_size) {
+    for(int i=0; i<line_array_size; i++) {
+        printf("%s", line_array[i]);
+    }
+}
+
+void FreeFile(char** line_array, int line_array_size) {
+    for(int i=0; i<line_array_size; i++) {
+        free(line_array[i]);
+    }
+    free(line_array);
 }
 
 char *ConstructPayload(InMessageHeader msg_header, char *message) {

@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < NUM_P; i++) {
         processPArray[i] = fork();
         if (processPArray[i] == 0) { //if child
-            int ret = ProcessP("./rand.txt", in_queue_id, out_queue_id);
+            int ret = ProcessP("./source/main.c", in_queue_id, out_queue_id);
             free(processPArray);
             return ret;
         }

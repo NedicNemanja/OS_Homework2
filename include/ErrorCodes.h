@@ -15,6 +15,7 @@ typedef enum ERRORCODE { OK=0,
     SEMOP,
     SEMCTL,
     SEMGET,
+    FOPEN_FAIL,
 } ERRORCODE;
 
 //this informs about the error that terminated the prog abruptly
