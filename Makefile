@@ -3,14 +3,14 @@ SOURCE_DIR = ./source
 OBJECT_DIR = ./object
 
 CC = gcc
-CFLAGS=-g -I$(INCLUDE_DIR)
+CFLAGS=-g -I$(INCLUDE_DIR) -lcrypto -lssl
 OUT = hw2
 
-_DEPS = ErrorCodes.h
+_DEPS = ErrorCodes.h Globals.h InQueue.h OutQueue.h ProcessC.h ProcessP.h SharedMem.h
 #pattern matching from  _DEPS to include directory
 DEPS = $(patsubst %,$(INCLUDE_DIR)/%,$(_DEPS))
 
-_OBJ = main.o
+_OBJ = InQueue.o main.o OutQueue.o ProcessC.o ProcessP.o SharedMem.o
 #same pattern matching principe
 OBJ = $(patsubst %,$(OBJECT_DIR)/%,$(_OBJ))
 

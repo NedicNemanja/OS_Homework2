@@ -13,24 +13,22 @@ typedef struct OutMessage {
     char message[MD5_HASH_SIZE];
 } OutMessage;
 
-size_t OUT_QUEUE_SIZE = (size_t) (MAX_NUM_OUT_MSG * sizeof(OutMessage));
 
 typedef struct OutQueueHeader {
-    volatile int first;  //next message to be read from consumer
-    volatile int last;  //last message in the queue
-    key_t semkey_read;  //binary semaphore that controls who reads next from the queue
-    key_t semkey_msgNum;    //seamphre that gives the number of messages available for reading in queue
+    volatile int first;  //next message to be read from consumer. Set to 0 at start.
+    volatile int last;  //last message in the queue. Set to -1 at start.
+    key_t semkey_read;  //binary semaphore that controls who reads next from the queue. Set to 1 at start.
+    key_t semkey_msgNum;//semaphore that gives the number of messages available for reading in queue. Set to 0 at start.
 } OutQueueHeader;
 
-void OutQueue_Write(OutMessage message);
+int OutQueue_Init(key_t shkey, size_t memSize);
 
-char* OutQueue_Read(OutQueueHeader *queue);
+void OutQueue_Write(OutQueueHeader *queue, OutMessage message);
 
-/**
- * Get the pointer of the next message to be read from queue
- * @param queue
- * @return char* pointer to next OutMessage to be read
- */
-char* OutQueue_GetPtr(OutQueueHeader *queue);
+char *OutQueue_Read(OutQueueHeader *queue);
+
+void OutQueue_DelSemaphores(OutQueueHeader *queue);
+
+char *OutQueue_GetPtr(OutQueueHeader *queue, int i);
 
 #endif //OS_OUTQUEUE_H

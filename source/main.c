@@ -16,37 +16,46 @@
 void ParseArguments(int argc, char *argv[]);
 
 int main(int argc, char *argv[]) {
+    printf("Master process started.\n");
     ParseArguments(argc, argv);
+    printf("NUM+P:%d\nNUM_ITERATIONS:%d\n", NUM_P, NUM_ITERATIONS);
     //create 2 shared_mem segments, one for in one for out
-    key_t memkeys[2] = {0x1111, 0x2222};
     int in_queue_id = InQueue_Init(0x1111, IN_QUEUE_SIZE);
-    int out_queue_init = OutQueue_Init(0x2222, OUT_QUEUE_SIZE)};
-
-    pid_t *processPArray = malloc(NUM_P *sizeof(pid_t));
+    int out_queue_id = OutQueue_Init(0x2222, (size_t) (MAX_NUM_OUT_MSG * sizeof(OutMessage)));
+    //create P processes
+    pid_t *processPArray = malloc(NUM_P * sizeof(pid_t));
     for (int i = 0; i < NUM_P; i++) {
         processPArray[i] = fork();
         if (processPArray[i] == 0) { //if child
-            return ProcessP(sharedMemIn, sharedMemOut);
+            return ProcessP("./rand.txt", in_queue_id, out_queue_id);
         }
     }
+    //create C process
     pid_t pid_C = fork();
     if (pid_C == 0) {
-        return ProcesssC(numIterations, numProcessP, processPArray, sharedMemIn, sharedMemOut);
+        return ProcessC(NUM_ITERATIONS, processPArray, NUM_P, in_queue_id, out_queue_id);
     }
 
     //wait for all children before you terminate
     int status;
-    while (wait(&status) > 0);
-    printf("Children done\n");
+    printf("Master waiting for C to terminate.\n");
+    waitpid(pid_C, &status, 0);
+    printf("C done with status: %d\n", status);
 
-    //TODO how many pid_match for each P, collect return status if child?
-    //TODO print stats
-
-    /*Cleanup*/
-    for(int i=0; i<3; i++){
-        //delete shared memory
-        QueueDelete(queueids[i]);
+    for(int i=0; i<NUM_P; i++) {
+        printf("Master waiting for P %d to terminate\n", processPArray[i]);
+        waitpid(processPArray[i], &status, 0);
+        printf("%d P finished with status:%d\n", processPArray[i], status);
     }
+
+    //cleanup
+    QueueDelete(in_queue_id);
+    QueueDelete(out_queue_id);
+
+    printf("----------------------------------------------------------------\n")
+    printf("Sucessfull termination with:\n");
+    printf("%d P processes", NUM_P);
+    printf("%d C process steps/iterations\n", NUM_ITERATIONS);
     return 0;
 }
 
@@ -54,7 +63,7 @@ void ParseArguments(int argc, char *argv[]) {
     int arg_index = 1;
     int N_flag = 0, K_flag = 0;
     if (argc != 5) {
-        fprintf(stderr, "Expected 5 cmd arguments. Got: \n", argc);
+        printf("Expected 5 cmd arguments. Got: %d\n", argc);
         exit(BAD_CMDARGUMENTs);
     }
 

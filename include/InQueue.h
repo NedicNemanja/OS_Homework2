@@ -4,6 +4,8 @@
 #include "Globals.h"
 
 #include <string.h> //memcpy
+#include <unistd.h>
+#include <sys/types.h>
 
 /**
  * This header exists before each message data block. It is there to provide information about the data and its size.
@@ -31,18 +33,22 @@ typedef struct InMessageHeader {
  *  and two reads for that message.
  */
 typedef struct InQueueHeader {
-    volatile int start_ptr; //points to where the allocated space of InQueue starts, in bytes. Set to 0 at start.
-    volatile int end_ptr;   //points to where the allocated space of InQueue ends, in bytes. Set to -1 at start.
+    volatile int read_ptr; //points to where the allocated space of InQueue starts, in bytes. Set to 0 at start.
+    volatile int write_ptr;   //points to where the allocated space of InQueue ends, in bytes. Set to 0 at start.
     key_t semkey_writeSem;  //down when someone is writting to the queue, upped once they finish. Set to 1 at start.
     key_t semkey_msgNum;   //upped when msg inserted, downed when msg removed from queue. Set to 0 at start.
     key_t semkey_freeSpace; //value of this sem reveals the available space in queue, in bytes.
 } InQueueHeader;
 
+int InQueue_Init(key_t shkey, size_t memSize);
+
 void InQueue_Write(InQueueHeader *queue, char *payload, size_t payload_size);
 
-char* InQueue_Read(InQueueHeader *queue);
+char* InQueue_Read(InQueueHeader *queue, pid_t *writer_pid);
 
 char *InQueue_GetPtr(InQueueHeader *queue, int end_ptr);
+
+void InQueue_DelSemaphores(InQueueHeader *queue);
 
 /*******************   InMessage   ********************************/
 
