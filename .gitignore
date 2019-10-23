@@ -1,0 +1,16 @@
+/*
+
+!README.md
+!.gitignore
+
+#Exclude the contents of object files and the executable itself
+!include/
+!source/
+!Makefile
+#include empty object/ directory, nothing else, only dummy .gitkeep file
+!object/
+object/*
+!object/.gitkeep
+
+#NOTE: You can't commit empty folders to git, so i use a dummy file called .gitkeep to include them
+

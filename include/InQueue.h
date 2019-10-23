@@ -16,21 +16,19 @@ typedef struct InMessageHeader {
 } InMessageHeader;
 
 /**
- * Processes P write to this Queue and process C reads from it.
+ * Processes P's write to this Queue and process C reads from it.
  * The InQueueHeader is included in the start of the Shared Memory segment.
  * Upon initialization the start_ptr and end_ptr both point after the InQueueHeader.
  * When a write is performed:
  *  The writer will check:
  *  -If some other process is already writing to the Queue (writeSem is down). If yes then wait (writeSem up).
- *  -If there is enough space to write the messageHeader+message, by trying to decrease the freeSpace
+ *  -If there is enough space to write the payload, by trying to decrease the freeSpace
  *  semaphore by (sizeof(InMessageHeader)+msg_size).
  *  After successfully writing the data the msgNum semaphore will be upped by 1 as well and the end_ptr will be moved.
  * When a read is performed:
  *  -The reader will check if there are available messages to read (down the writeSem by 1)
  *  -When the message becomes available, the data is copied by the C process, and the freeSpace semaphore semval is
  *   increased in order to represent that the space has been read, and freed. With this action the start_ptr will also be moved.
- * Wrapping: when a message cannot fit in one block we will have end_ptr <= start_ptr and break it up into two writes
- *  and two reads for that message.
  */
 typedef struct InQueueHeader {
     volatile int read_ptr; //points to where the allocated space of InQueue starts, in bytes. Set to 0 at start.
